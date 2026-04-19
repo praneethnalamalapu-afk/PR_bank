@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="dashboard">
+
+    <!-- 👤 USER HEADER -->
+    <div class="user-card">
+        <div class="user-header">
+            <h2>
+                Welcome 
+                {% if user.gender == "Male" %}Mr{% else %}Ms{% endif %}
+                {{ user.full_name }}
+            </h2>
+
+            <div class="header-actions">
+                <button class="btn account-btn" onclick="toggleAccount()">
+                    My Account
+                </button>
+
+                <!-- ✅ NEW BUTTON -->
+                <button class="btn account-btn" onclick="location.href='/transactions'">
+                    My Transactions
+                </button>
+            </div>
+        </div>
+
+        <!-- 🔍 HIDDEN ACCOUNT DETAILS -->
+        <div id="accountDetails" class="account-details">
+            <p><b>Name:</b> {{ user.full_name }}</p>
+            <p><b>Email:</b> {{ user.email }}</p>
+            <p><b>Phone:</b> {{ user.phone }}</p>
+
+            {% for acc in accounts %}
+            <p><b>Account #{{ acc.id }}</b> → ₹{{ acc.balance }}</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 💳 ACCOUNTS -->
+    <h3 class="section-title">Your Accounts</h3>
+
+    <div class="accounts-grid">
+        {% for acc in accounts %}
+        <div class="account-card">
+            <p class="acc-id">Account #{{ acc.id }}</p>
+
+            <!-- 🔒 HIDDEN BALANCE -->
+            <h2 id="balance-{{acc.id}}">₹ xxxx</h2>
+
+            <button class="btn show-btn" onclick="toggleBalance({{acc.id}}, {{acc.balance}})">
+                Show Balance
+            </button>
+
+            <div class="actions">
+                <form action="/deposit/{{acc.id}}" method="POST">
+                    <input name="amount" placeholder="Amount" required>
+                    <button class="btn deposit">Deposit</button>
+                </form>
+
+                <form action="/withdraw/{{acc.id}}" method="POST">
+                    <input name="amount" placeholder="Amount" required>
+                    <button class="btn withdraw">Withdraw</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 🔄 TRANSFER -->
+    <div class="transfer-card">
+        <h3>Transfer Money</h3>
+
+        <form action="/transfer" method="POST">
+            <select name="from" required>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}">
+                    From Account #{{ acc.id }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <input type="number" name="to" placeholder="Receiver Account ID" required>
+            <input type="number" name="amount" placeholder="Amount" required>
+
+            <button class="btn transfer-btn">Transfer</button>
+        </form>
+    </div>
+
+</div>
+
+<!-- ⚙️ SCRIPT -->
+<script>
+function toggleBalance(id, amount) {
+    const el = document.getElementById("balance-" + id);
+
+    if (el.innerText.includes("xxxx")) {
+        el.innerText = "₹ " + amount;
+    } else {
+        el.innerText = "₹ xxxx";
+    }
+}
+
+function toggleAccount() {
+    const section = document.getElementById("accountDetails");
+
+    if (section.style.display === "block") {
+        section.style.display = "none";
+    } else {
+        section.style.display = "block";
+    }
+}
+</script>
+
+{% endblock %}

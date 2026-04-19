@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if step == 1 %}
+<h2>Account Recovery</h2>
+<form method="POST">
+<input name="username" placeholder="Enter username" required>
+<button>Next</button>
+</form>
+
+{% elif step == 2 %}
+<h2>Answer Security Questions</h2>
+
+<form action="/verify" method="POST">
+<input type="hidden" name="user_id" value="{{user_id}}">
+
+<p>{{rec.q1}}</p>
+<input name="a1" required>
+
+<p>{{rec.q2}}</p>
+<input name="a2" required>
+
+<p>{{rec.q3}}</p>
+<input name="a3" required>
+
+<button>Verify</button>
+</form>
+{% endif %}
+
+{% endblock %}

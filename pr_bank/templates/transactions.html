@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="dashboard">
+
+    <div class="trans-header">
+        <h2 class="trans-title">My Transactions</h2>
+        <a href="/dashboard" class="btn back-btn">← Back to Dashboard</a>
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="controls">
+
+        <select id="sortSelect">
+            <option value="date_desc">Sort: Date ↓</option>
+            <option value="date_asc">Sort: Date ↑</option>
+            <option value="amount_desc">Amount ↓</option>
+            <option value="amount_asc">Amount ↑</option>
+        </select>
+
+        <select id="typeFilter">
+            <option value="">All Types</option>
+            <option value="DEPOSIT">Deposit</option>
+            <option value="WITHDRAW">Withdraw</option>
+            <option value="TRANSFER">Transfer</option>
+        </select>
+
+        <input type="number" id="minAmount" placeholder="Min ₹">
+        <input type="number" id="maxAmount" placeholder="Max ₹">
+
+        <button onclick="applyFilters()" class="btn">Apply</button>
+        <button onclick="resetFilters()" class="btn">Reset</button>
+
+    </div>
+
+    <!-- TABLE ALWAYS RENDERED -->
+    <table class="trans-table">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>To Account</th>
+                <th>Date & Time</th>
+            </tr>
+        </thead>
+
+        <tbody id="tableBody"></tbody>
+    </table>
+
+    <!-- NO DATA MESSAGE -->
+    <p id="noDataMsg" class="no-data" style="display:none;">
+        No transactions found.
+    </p>
+
+</div>
+
+<script>
+const transactions = {{ transactions|tojson | safe }};
+let filteredData = [...transactions];
+
+function formatDate(ts) {
+    const d = new Date(ts);
+    return d.toLocaleString(); // cleaner display
+}
+
+function renderTable(data) {
+    const table = document.getElementById("tableBody");
+    const msg = document.getElementById("noDataMsg");
+
+    table.innerHTML = "";
+
+    if (data.length === 0) {
+        msg.style.display = "block";
+        return;
+    } else {
+        msg.style.display = "none";
+    }
+
+    data.forEach(t => {
+        table.innerHTML += `
+            <tr>
+                <td>${t.type}</td>
+                <td>₹ ${t.amount}</td>
+                <td>${t.to_account ? "#" + t.to_account : "-"}</td>
+                <td>${formatDate(t.timestamp)}</td>
+            </tr>
+        `;
+    });
+}
+
+function applyFilters() {
+    const type = document.getElementById("typeFilter").value;
+    const min = document.getElementById("minAmount").value;
+    const max = document.getElementById("maxAmount").value;
+    const sort = document.getElementById("sortSelect").value;
+
+    filteredData = transactions.filter(t => {
+
+        if (type && t.type !== type) return false;
+
+        if (min && t.amount < parseFloat(min)) return false;
+        if (max && t.amount > parseFloat(max)) return false;
+
+        return true;
+    });
+
+    // SORTING
+    if (sort === "amount_asc") {
+        filteredData.sort((a,b) => a.amount - b.amount);
+    } 
+    else if (sort === "amount_desc") {
+        filteredData.sort((a,b) => b.amount - a.amount);
+    }
+    else if (sort === "date_asc") {
+        filteredData.sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+    }
+    else {
+        filteredData.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+    }
+
+    renderTable(filteredData);
+}
+
+function resetFilters() {
+    document.getElementById("typeFilter").value = "";
+    document.getElementById("minAmount").value = "";
+    document.getElementById("maxAmount").value = "";
+    document.getElementById("sortSelect").value = "date_desc";
+
+    filteredData = [...transactions];
+    renderTable(filteredData);
+}
+
+// INITIAL LOAD
+window.onload = () => {
+    renderTable(transactions);
+};
+</script>
+
+{% endblock %}

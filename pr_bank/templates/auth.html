@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="static\style1.css">
+    <title>Auth</title>
+</head>
+<body>
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+        <div id="toast-container">
+        {% for msg in messages %}
+            <div class="toast">{{ msg }}</div>
+        {% endfor %}
+        </div>
+    {% endif %}
+    {% endwith %}
+<div class="container" id="container">
+
+    <!-- REGISTER -->
+    <div class="form-container sign-up">
+        <form method="POST" action="/register" id="registerForm">
+
+            <!-- STEP 1 (User Details) -->
+            <div id="step1">
+                <h2>Create Account</h2>
+
+                <input type="text" name="full_name" placeholder="Full Name" required>
+                <input type="text" name="username" placeholder="Username" required>
+                <input type="email" name="email" placeholder="Email" required>
+                <input type="text" name="phone" placeholder="Phone Number" required>
+
+                <select name="gender" required>
+                    <option value="">Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                </select>
+
+                <input type="password" name="password" placeholder="Password" required>
+
+                <button type="button" onclick="showStep2()">Next</button>
+            </div>
+
+            <!-- STEP 2 (Security Questions) -->
+            <div id="step2" style="display:none;">
+                <h4>Security Questions</h4>
+
+                <select name="q1">
+                    {% for q in questions %}
+                    <option value="{{q}}">{{q}}</option>
+                    {% endfor %}
+                </select>
+                <input name="a1" placeholder="Answer" required>
+
+                <select name="q2">
+                    {% for q in questions %}
+                    <option value="{{q}}">{{q}}</option>
+                    {% endfor %}
+                </select>
+                <input name="a2" placeholder="Answer" required>
+
+                <select name="q3">
+                    {% for q in questions %}
+                    <option value="{{q}}">{{q}}</option>
+                    {% endfor %}
+                </select>
+                <input name="a3" placeholder="Answer" required>
+
+                <button type="button" onclick="backToStep1()">Back</button>
+                <button type="submit">Sign Up</button>
+            </div>
+
+        </form>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="form-container sign-in">
+        <form method="POST" action="/login">
+            <h2>Sign In</h2>
+
+            <input type="text" name="username" placeholder="Username" required>
+            <input type="password" name="password" placeholder="Password" required>
+
+            <a href="/recover">Forgot Password?</a>
+
+            <button type="submit">Sign In</button>
+        </form>
+    </div>
+
+    <!-- TOGGLE PANEL -->
+    <div class="toggle-container">
+        <div class="toggle">
+
+            <div class="toggle-panel toggle-left">
+                <h2>Welcome Back!</h2>
+                <p>Already have an account?</p>
+                <button class="hidden" id="login">Sign In</button>
+            </div>
+
+            <div class="toggle-panel toggle-right">
+                <h2>Hello, User!</h2>
+                <p>Don't have an account?</p>
+                <button class="hidden" id="register">Sign Up</button>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<script>
+const container = document.getElementById('container');
+const registerBtn = document.getElementById('register');
+const loginBtn = document.getElementById('login');
+
+registerBtn.addEventListener('click', () => {
+    container.classList.add("active");
+});
+
+loginBtn.addEventListener('click', () => {
+    container.classList.remove("active");
+});
+
+function showStep2() {
+    document.getElementById("step1").style.display = "none";
+    document.getElementById("step2").style.display = "block";
+}
+
+function backToStep1() {
+    document.getElementById("step2").style.display = "none";
+    document.getElementById("step1").style.display = "block";
+}
+
+setTimeout(() => {
+    const container = document.getElementById("toast-container");
+    if (container) container.remove();
+}, 4000);
+
+</script>
+
+</body>
+</html>
+

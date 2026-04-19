@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Register</h2>
+
+<form method="POST">
+<label>Name</label>
+<input type="text" name="name" required>
+
+<label>Phone Number</label>
+<input type="text" name="phone" required>
+
+<label>Address</label>
+<input type="text" name="address" required>
+
+<label>Email</label>
+<input type="text" name="mail" required>
+
+<label>Gender</label>
+<select name="gender" required>
+    <option value="Male">Male</option>
+    <option value="Female">Female</option>
+</select>
+
+<label>Username</label>
+<input type="text" name="username" required>
+
+<label>Password</label>
+<input type="password" name="password" required>
+
+
+
+
+
+
+
+<h3>Security Questions</h3>
+
+<select name="q1">
+{% for q in questions %}
+<option value="{{q}}">{{q}}</option>
+{% endfor %}
+</select>
+<input name="a1" placeholder="Answer" required>
+
+<select name="q2">
+{% for q in questions %}
+<option value="{{q}}">{{q}}</option>
+{% endfor %}
+</select>
+<input name="a2" required>
+
+<select name="q3">
+{% for q in questions %}
+<option value="{{q}}">{{q}}</option>
+{% endfor %}
+</select>
+<input name="a3" required>
+
+<button type="submit">Register</button>
+</form>
+{% endblock %}
