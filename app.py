@@ -4,7 +4,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY")
+app.secret_key = os.environ.get("SECRET_KEY","dev-only-secret-key-change-this")
+SECRET_KEY = os.environ.get("SECRET_KEY")
+
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is not set")
+
+app.secret_key = SECRET_KEY
 
 DB = os.path.join(os.path.dirname(__file__), "prdb.db")
 
@@ -36,7 +42,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS accounts(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
-        balance REAL DEFAULT 0
+        balance INTEGER DEFAULT 0
     )
     """)
 
@@ -117,11 +123,11 @@ def auth():
             gender = request.form["gender"]
 
             # VALIDATION
-            if not phone.isdigit():
-                flash("Invalid phone number", "error")
+            if not phone.isdigit() or len(phone) != 10:
+                flash("Enter a valid 10-digit phone number", "error")
                 return redirect("/register")
 
-            if "@" not in email:
+            if "@" not in email or "." not in email.split("@")[-1]:
                 flash("Invalid email", "error")
                 return redirect("/register")
 
@@ -178,53 +184,128 @@ def dashboard():
 
 
 # ---------------- DEPOSIT ----------------
+# ---------------- DEPOSIT ----------------
 @app.route("/deposit/<int:acc_id>", methods=["POST"])
 def deposit(acc_id):
-    amount = float(request.form["amount"])
+
+    if "user_id" not in session:
+        return redirect("/login")
+
+    try:
+        amount = float(request.form["amount"])
+    except (ValueError, TypeError):
+        flash("Invalid amount", "error")
+        return redirect("/dashboard")
+
+    if amount <= 0:
+        flash("Amount must be greater than zero", "error")
+        return redirect("/dashboard")
 
     conn = get_db()
     cur = conn.cursor()
 
     try:
-        cur.execute("UPDATE accounts SET balance = balance + ? WHERE id=?", (amount, acc_id))
+        # Verify account belongs to logged-in user
+        cur.execute(
+            "SELECT * FROM accounts WHERE id=? AND user_id=?",
+            (acc_id, session["user_id"])
+        )
 
+        account = cur.fetchone()
+
+        if not account:
+            flash("Unauthorized access", "error")
+            return redirect("/dashboard")
+
+        # Update balance
+        cur.execute(
+            "UPDATE accounts SET balance = balance + ? WHERE id=?",
+            (amount, acc_id)
+        )
+
+        # Record transaction
         cur.execute("""
-        INSERT INTO transactions(account_id,type,amount,to_account)
-        VALUES(?,?,?,NULL)
+            INSERT INTO transactions(account_id, type, amount, to_account)
+            VALUES(?,?,?,NULL)
         """, (acc_id, "DEPOSIT", amount))
 
         conn.commit()
+
         flash("Deposit completed successfully", "success")
+
+    except Exception as e:
+        conn.rollback()
+        print("DEPOSIT ERROR:", e)
+        flash("Deposit failed", "error")
+
     finally:
         conn.close()
 
     return redirect("/dashboard")
+    
 
 
 # ---------------- WITHDRAW ----------------
+# ---------------- WITHDRAW ----------------
 @app.route("/withdraw/<int:acc_id>", methods=["POST"])
 def withdraw(acc_id):
-    amount = float(request.form["amount"])
+
+    if "user_id" not in session:
+        return redirect("/login")
+
+    try:
+        amount = float(request.form["amount"])
+    except (ValueError, TypeError):
+        flash("Invalid amount", "error")
+        return redirect("/dashboard")
+
+    if amount <= 0:
+        flash("Amount must be greater than zero", "error")
+        return redirect("/dashboard")
 
     conn = get_db()
     cur = conn.cursor()
 
     try:
-        cur.execute("SELECT balance FROM accounts WHERE id=?", (acc_id,))
-        bal = cur.fetchone()["balance"]
+        # Verify account belongs to logged-in user
+        cur.execute(
+            "SELECT * FROM accounts WHERE id=? AND user_id=?",
+            (acc_id, session["user_id"])
+        )
 
-        if bal >= amount:
-            cur.execute("UPDATE accounts SET balance = balance - ? WHERE id=?", (amount, acc_id))
+        account = cur.fetchone()
 
-            cur.execute("""
-            INSERT INTO transactions(account_id,type,amount,to_account)
-            VALUES(?,?,?,NULL)
-            """, (acc_id, "WITHDRAW", amount))
+        if not account:
+            flash("Unauthorized access", "error")
+            return redirect("/dashboard")
 
-            conn.commit()
-            flash("Withdrawal successful", "success")
-        else:
+        balance = account["balance"]
+
+        if balance < amount:
             flash("Insufficient funds", "error")
+            return redirect("/dashboard")
+
+        # Update balance
+        cur.execute(
+            "UPDATE accounts SET balance = balance - ? WHERE id=?",
+            (amount, acc_id)
+        )
+
+        # Record transaction
+        cur.execute("""
+            INSERT INTO transactions(account_id, type, amount, to_account)
+            VALUES(?,?,?,NULL)
+        """, (acc_id, "WITHDRAW", amount))
+
+        conn.commit()
+
+        flash("Withdrawal successful", "success")
+
+    except Exception as e:
+        conn.rollback()
+        print("WITHDRAW ERROR:", e)
+        flash("Withdrawal failed", "error")
+
     finally:
         conn.close()
 
@@ -239,7 +320,15 @@ def transfer():
 
     from_acc = request.form["from"]
     to_acc = request.form["to"]
-    amount = float(request.form["amount"])
+    #----amount = float(request.form["amount"])
+    try:
+        amount = float(request.form["amount"])
+    except (ValueError, TypeError):
+        flash("Invalid amount", "error")
+        return redirect("/dashboard")
+    if amount <= 0:
+        flash("Invalid amount", "error")
+        return redirect("/dashboard")
 
     conn = get_db()
     cur = conn.cursor()
@@ -254,6 +343,10 @@ def transfer():
             flash("Unauthorized access", "error")
             return redirect("/dashboard")
 
+        if from_acc == to_acc:
+            flash("Cannot transfer to the same account", "error")
+            return redirect("/dashboard")
+            
         # Validate receiver
         cur.execute("SELECT * FROM accounts WHERE id=?", (to_acc,))
         receiver = cur.fetchone()
@@ -328,6 +421,7 @@ def logout():
 
 
 # ---------------- MAIN ----------------
+init_db()
 if __name__ == "__main__":
-    init_db()
+    
     app.run(debug=True)
