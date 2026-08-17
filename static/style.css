@@ -1,0 +1,296 @@
+body {
+    font-family: Arial;
+    background: #f4f4f4;
+}
+
+nav {
+    background: #333;
+    padding: 10px;
+}
+
+nav a {
+    color: white;
+    margin-right: 15px;
+}
+
+.container {
+    padding: 20px;
+    background: white;
+    margin: 20px auto;
+    width: 60%;
+    border-radius: 10px;
+}
+
+/* FLASH MESSAGES */
+.msg {
+    background: #d4edda;
+    color: #155724;
+    padding: 10px;
+    border: 1px solid #c3e6cb;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+button {
+    background: #28a745;
+    color: white;
+    padding: 8px;
+}
+
+/* 🌙 DASHBOARD */
+.dashboard {
+    padding: 30px;
+    color: #fff;
+}
+
+/* 👤 USER CARD */
+.user-card {
+    background: linear-gradient(135deg, #0a0f1c, #111827);
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.user-card h2 {
+    color: #5ed29c;
+}
+
+.section-title {
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+/* 💳 ACCOUNTS */
+.accounts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.account-card {
+    background: #0f172a;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+    transition: transform 0.2s;
+}
+
+.account-card:hover {
+    transform: translateY(-5px);
+}
+
+.acc-id {
+    font-size: 12px;
+    color: #aaa;
+}
+
+.account-card h2 {
+    margin: 10px 0;
+}
+
+/* 🔘 ACTIONS */
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.actions input {
+    padding: 8px;
+    border-radius: 8px;
+    border: none;
+}
+
+/* 🔘 BUTTONS */
+.btn {
+    padding: 8px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.deposit {
+    background: #5ed29c;
+    color: #000;
+}
+
+.withdraw {
+    background: #ff6b6b;
+    color: #fff;
+}
+
+/* 🔄 TRANSFER */
+.transfer-card {
+    margin-top: 40px;
+    background: #111827;
+    padding: 20px;
+    border-radius: 15px;
+}
+
+.transfer-card form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.transfer-card input,
+.transfer-card select {
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+}
+
+.transfer-btn {
+    background: #4dabf7;
+    color: #fff;
+}
+
+/* 👤 USER HEADER */
+.user-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 🔘 ACCOUNT BUTTON */
+.account-btn {
+    background: #5ed29c;
+    color: #000;
+}
+
+/* 🔍 ACCOUNT DETAILS PANEL */
+.account-details {
+    margin-top: 15px;
+    padding: 15px;
+    background: #0f172a;
+    border-radius: 10px;
+    display: none;
+}
+
+/* 👁 SHOW BUTTON */
+.show-btn {
+    background: #4dabf7;
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+/*transaction history*/
+
+/* ================= TRANSACTIONS ================= */
+
+/* HEADER */
+.trans-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #ffffff;
+}
+
+/* TITLE */
+.trans-title {
+    color: #5ed29c;
+}
+
+/* CONTROLS */
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.controls input,
+.controls select {
+    padding: 8px;
+    border-radius: 6px;
+    border: none;
+}
+
+/* TABLE */
+.trans-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: #0f172a;
+    color: #ffffff;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.trans-table th,
+.trans-table td {
+    padding: 12px;
+    border-bottom: 1px solid #1f2937;
+    text-align: left;
+}
+
+.trans-table th {
+    background: #111827;
+    color: #5ed29c;
+}
+
+/* HOVER */
+.trans-table tr:hover {
+    background: #1f2937;
+}
+
+/* TYPES */
+.type.deposit {
+    color: #22c55e;
+    font-weight: bold;
+}
+
+.type.withdraw {
+    color: #ef4444;
+    font-weight: bold;
+}
+
+.type.transfer {
+    color: #facc15;
+    font-weight: bold;
+}
+
+/* NO DATA */
+.no-data {
+    margin-top: 20px;
+    color: #aaa;
+    display: none;
+}
+
+/* BACK BUTTON */
+.back-btn {
+    background: #5ed29c;
+    color: #000;
+}
+
+/* TOAST NOTIFICATIONS */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.toast {
+    background: #333;
+    color: #fff;
+    padding: 12px 18px;
+    margin-top: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    animation: fadeInOut 4s ease forwards;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.toast.success { background: #28a745; }
+.toast.error { background: #dc3545; }
+.toast.info { background: #007bff; }
+
+@keyframes fadeInOut {
+    0% {opacity: 0; transform: translateX(100%);}
+    10% {opacity: 1; transform: translateX(0);}
+    90% {opacity: 1;}
+    100% {opacity: 0; transform: translateX(100%);}
+}

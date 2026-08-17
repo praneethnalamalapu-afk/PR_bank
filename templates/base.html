@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="static\style.css">
+<title>Bank App</title>
+</head>
+<body>
+<nav>
+<a href="/">Home</a>
+<a href="/dashboard">Dashboard</a>
+<a href="/recover">Recovery</a>
+<a href="/logout">Logout</a>
+</nav>
+<div class="container">
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+    <div id="toast-container">
+    {% for category, msg in messages %}
+        <div class="toast {{ category }}">{{ msg }}</div>
+    {% endfor %}
+    </div>
+{% endif %}
+{% endwith %}
+{% block content %}{% endblock %}
+</div>
+</body>
+</html>
