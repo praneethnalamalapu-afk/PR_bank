@@ -1,0 +1,504 @@
+from flask import Flask, render_template, request, redirect, session, flash
+import sqlite3
+from werkzeug.security import generate_password_hash, check_password_hash
+import os
+
+app = Flask(__name__)
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-secret-key-change-this")
+app.secret_key = SECRET_KEY
+
+DB = os.path.join(os.path.dirname(__file__), "prdb.db")
+
+# ---------------- DB ----------------
+def get_db():
+    conn = sqlite3.connect(DB, timeout=10, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+def init_db():
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("PRAGMA journal_mode=WAL;")
+    # USERS
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS users(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT,
+        full_name TEXT,
+        email TEXT,
+        phone TEXT,
+        gender TEXT
+    )
+    """)
+
+    # ACCOUNTS
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS accounts(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        balance INTEGER DEFAULT 0
+    )
+    """)
+
+    # TRANSACTIONS (FINAL FIXED)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS transactions(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        account_id INTEGER,
+        type TEXT,
+        amount REAL,
+        to_account INTEGER,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # RECOVERY
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS recovery(
+        user_id INTEGER,
+        q1 TEXT, a1 TEXT,
+        q2 TEXT, a2 TEXT,
+        q3 TEXT, a3 TEXT
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+# ---------------- QUESTIONS ----------------
+QUESTIONS = [
+    "What is your childhood nickname?",
+    "What was your first school?",
+    "What is your favorite food?",
+    "What is your pet’s name?",
+    "What city were you born in?"
+]
+
+
+# ---------------- HOME ----------------
+@app.route("/")
+def index():
+    if "user_id" in session:
+        return redirect("/dashboard")
+    return redirect("/login")
+
+
+# ---------------- AUTH ----------------
+@app.route("/login", methods=["GET","POST"])
+@app.route("/register", methods=["GET","POST"])
+def auth():
+    if request.method == "POST":
+
+        # -------- LOGIN --------
+        if request.path == "/login":
+            username = request.form["username"]
+            password = request.form["password"]
+
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM users WHERE username=?", (username,))
+            user = cur.fetchone()
+
+            if user and check_password_hash(user["password"], password):
+                session["user_id"] = user["id"]
+                return redirect("/dashboard")
+            else:
+                flash("Invalid credentials", "error")
+                return redirect("/login")
+
+        # -------- REGISTER --------
+        else:
+            username = request.form["username"]
+            password = generate_password_hash(request.form["password"])
+            full_name = request.form["full_name"]
+            phone = request.form["phone"]
+            email = request.form["email"]
+            gender = request.form["gender"]
+
+            # VALIDATION
+            if not phone.isdigit() or len(phone) != 10:
+                flash("Enter a valid 10-digit phone number", "error")
+                return redirect("/register")
+
+            if "@" not in email or "." not in email.split("@")[-1]:
+                flash("Invalid email", "error")
+                return redirect("/register")
+
+            q1, q2, q3 = request.form["q1"], request.form["q2"], request.form["q3"]
+            a1 = generate_password_hash(request.form["a1"].lower())
+            a2 = generate_password_hash(request.form["a2"].lower())
+            a3 = generate_password_hash(request.form["a3"].lower())
+
+            conn = get_db()
+            cur = conn.cursor()
+
+            try:
+                cur.execute("""
+                INSERT INTO users(username,password,full_name,email,phone,gender)
+                VALUES(?,?,?,?,?,?)
+                """, (username, password, full_name, email, phone, gender))
+
+                user_id = cur.lastrowid
+
+                cur.execute("""
+                INSERT INTO recovery VALUES(?,?,?,?,?,?,?)
+                """, (user_id, q1, a1, q2, a2, q3, a3))
+
+                cur.execute("INSERT INTO accounts(user_id,balance) VALUES(?,0)", (user_id,))
+
+                conn.commit()
+
+                flash("Registered successfully", "success")
+                return redirect("/login")
+
+            except sqlite3.IntegrityError:
+                flash("User exists", "error")
+                return redirect("/register")
+
+    return render_template("auth.html", questions=QUESTIONS)
+
+
+# ---------------- DASHBOARD ----------------
+@app.route("/dashboard")
+def dashboard():
+    if "user_id" not in session:
+        return redirect("/login")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM users WHERE id=?", (session["user_id"],))
+    user = cur.fetchone()
+
+    cur.execute("SELECT * FROM accounts WHERE user_id=?", (session["user_id"],))
+    accounts = cur.fetchall()
+
+    return render_template("dashboard.html", user=user, accounts=accounts)
+
+
+# ---------------- DEPOSIT ----------------
+# ---------------- DEPOSIT ----------------
+@app.route("/deposit/<int:acc_id>", methods=["POST"])
+def deposit(acc_id):
+
+    if "user_id" not in session:
+        return redirect("/login")
+
+    try:
+        amount = float(request.form["amount"])
+    except (ValueError, TypeError):
+        flash("Invalid amount", "error")
+        return redirect("/dashboard")
+
+    if amount <= 0:
+        flash("Amount must be greater than zero", "error")
+        return redirect("/dashboard")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    try:
+        # Verify account belongs to logged-in user
+        cur.execute(
+            "SELECT * FROM accounts WHERE id=? AND user_id=?",
+            (acc_id, session["user_id"])
+        )
+
+        account = cur.fetchone()
+
+        if not account:
+            flash("Unauthorized access", "error")
+            return redirect("/dashboard")
+
+        # Update balance
+        cur.execute(
+            "UPDATE accounts SET balance = balance + ? WHERE id=?",
+            (amount, acc_id)
+        )
+
+        # Record transaction
+        cur.execute("""
+            INSERT INTO transactions(account_id, type, amount, to_account)
+            VALUES(?,?,?,NULL)
+        """, (acc_id, "DEPOSIT", amount))
+
+        conn.commit()
+
+        flash("Deposit completed successfully", "success")
+
+    except Exception as e:
+        conn.rollback()
+        print("DEPOSIT ERROR:", e)
+        flash("Deposit failed", "error")
+
+    finally:
+        conn.close()
+
+    return redirect("/dashboard")
+    
+
+
+# ---------------- WITHDRAW ----------------
+# ---------------- WITHDRAW ----------------
+@app.route("/withdraw/<int:acc_id>", methods=["POST"])
+def withdraw(acc_id):
+
+    if "user_id" not in session:
+        return redirect("/login")
+
+    try:
+        amount = float(request.form["amount"])
+    except (ValueError, TypeError):
+        flash("Invalid amount", "error")
+        return redirect("/dashboard")
+
+    if amount <= 0:
+        flash("Amount must be greater than zero", "error")
+        return redirect("/dashboard")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    try:
+        # Verify account belongs to logged-in user
+        cur.execute(
+            "SELECT * FROM accounts WHERE id=? AND user_id=?",
+            (acc_id, session["user_id"])
+        )
+
+        account = cur.fetchone()
+
+        if not account:
+            flash("Unauthorized access", "error")
+            return redirect("/dashboard")
+
+        balance = account["balance"]
+
+        if balance < amount:
+            flash("Insufficient funds", "error")
+            return redirect("/dashboard")
+
+        # Update balance
+        cur.execute(
+            "UPDATE accounts SET balance = balance - ? WHERE id=?",
+            (amount, acc_id)
+        )
+
+        # Record transaction
+        cur.execute("""
+            INSERT INTO transactions(account_id, type, amount, to_account)
+            VALUES(?,?,?,NULL)
+        """, (acc_id, "WITHDRAW", amount))
+
+        conn.commit()
+
+        flash("Withdrawal successful", "success")
+
+    except Exception as e:
+        conn.rollback()
+        print("WITHDRAW ERROR:", e)
+        flash("Withdrawal failed", "error")
+
+    finally:
+        conn.close()
+
+    return redirect("/dashboard")
+
+
+# ---------------- TRANSFER ----------------
+@app.route("/transfer", methods=["POST"])
+def transfer():
+    if "user_id" not in session:
+        return redirect("/login")
+
+    from_acc = request.form["from"]
+    to_acc = request.form["to"]
+    #----amount = float(request.form["amount"])
+    try:
+        amount = float(request.form["amount"])
+    except (ValueError, TypeError):
+        flash("Invalid amount", "error")
+        return redirect("/dashboard")
+    if amount <= 0:
+        flash("Invalid amount", "error")
+        return redirect("/dashboard")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    try:
+        # Validate sender
+        cur.execute("SELECT * FROM accounts WHERE id=? AND user_id=?", 
+                    (from_acc, session["user_id"]))
+        sender = cur.fetchone()
+
+        if not sender:
+            flash("Unauthorized access", "error")
+            return redirect("/dashboard")
+
+        if from_acc == to_acc:
+            flash("Cannot transfer to the same account", "error")
+            return redirect("/dashboard")
+            
+        # Validate receiver
+        cur.execute("SELECT * FROM accounts WHERE id=?", (to_acc,))
+        receiver = cur.fetchone()
+
+        if not receiver:
+            flash("Invalid receiver account", "error")
+            return redirect("/dashboard")
+
+        if amount <= 0:
+            flash("Invalid amount", "error")
+            return redirect("/dashboard")
+
+        if sender["balance"] < amount:
+            flash("Insufficient balance", "error")
+            return redirect("/dashboard")
+
+        # ✅ Atomic operations
+        cur.execute("UPDATE accounts SET balance = balance - ? WHERE id=?", (amount, from_acc))
+        cur.execute("UPDATE accounts SET balance = balance + ? WHERE id=?", (amount, to_acc))
+
+        cur.execute("""
+        INSERT INTO transactions(account_id,type,amount,to_account)
+        VALUES(?,?,?,?)
+        """, (from_acc, "TRANSFER", amount, to_acc))
+
+        conn.commit()
+        flash("Transfer is successful", "success")
+
+    except Exception as e:
+        conn.rollback()
+        print("ERROR:", e)
+        flash("Transaction failed", "error")
+
+    finally:
+        conn.close()
+
+    return redirect("/dashboard")
+
+
+# ---------------- TRANSACTIONS PAGE ----------------
+@app.route("/transactions")
+def transactions():
+    if "user_id" not in session:
+        return redirect("/login")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+        SELECT t.*
+        FROM transactions t
+        JOIN accounts a ON t.account_id = a.id
+        WHERE a.user_id=?
+        ORDER BY t.timestamp DESC
+        """, (session["user_id"],))
+
+        data = cur.fetchall()
+        transactions = [dict(row) for row in data]
+
+    finally:
+        conn.close()
+
+    return render_template("transactions.html", transactions=transactions)
+
+
+# ---------------- ACCOUNT RECOVERY ----------------
+@app.route("/recover", methods=["GET", "POST"])
+def recover():
+    if request.method == "POST":
+        username = request.form["username"]
+        
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM users WHERE username=?", (username,))
+        user = cur.fetchone()
+        
+        if not user:
+            flash("Username not found", "error")
+            return redirect("/recover")
+        
+        cur.execute("SELECT * FROM recovery WHERE user_id=?", (user["id"],))
+        recovery = cur.fetchone()
+        conn.close()
+        
+        if not recovery:
+            flash("Recovery questions not found", "error")
+            return redirect("/recover")
+        
+        session["recovery_user_id"] = user["id"]
+        return render_template("recover.html", step=2, rec=dict(recovery), user_id=user["id"], questions=QUESTIONS)
+    
+    return render_template("recover.html", step=1)
+
+
+# ---------------- VERIFY RECOVERY ----------------
+@app.route("/verify", methods=["POST"])
+def verify():
+    user_id = request.form["user_id"]
+    a1 = request.form["a1"].lower()
+    a2 = request.form["a2"].lower()
+    a3 = request.form["a3"].lower()
+    
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM recovery WHERE user_id=?", (user_id,))
+    recovery = cur.fetchone()
+    conn.close()
+    
+    if not recovery:
+        flash("Recovery not found", "error")
+        return redirect("/recover")
+    
+    # Check if answers match
+    if (check_password_hash(recovery["a1"], a1) and 
+        check_password_hash(recovery["a2"], a2) and 
+        check_password_hash(recovery["a3"], a3)):
+        
+        session["reset_user_id"] = user_id
+        return redirect("/reset")
+    else:
+        flash("Incorrect answers", "error")
+        return redirect("/recover")
+
+
+# ---------------- RESET PASSWORD ----------------
+@app.route("/reset", methods=["GET", "POST"])
+def reset():
+    if "reset_user_id" not in session:
+        return redirect("/recover")
+    
+    if request.method == "POST":
+        new_password = generate_password_hash(request.form["password"])
+        
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET password=? WHERE id=?", 
+                   (new_password, session["reset_user_id"]))
+        conn.commit()
+        conn.close()
+        
+        session.clear()
+        flash("Password reset successfully", "success")
+        return redirect("/login")
+    
+    return render_template("reset.html")
+
+
+# ---------------- LOGOUT ----------------
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
+
+
+# ---------------- MAIN ----------------
+init_db()
+if __name__ == "__main__":
+    
+    app.run(debug=True)
