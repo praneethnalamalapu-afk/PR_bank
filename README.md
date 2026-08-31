@@ -11,7 +11,7 @@ PR Bank provides a basic banking experience where users can create an account, s
 ## 🚀 Live Demo
 
 **Live Application:**\
-[https://pr-bank-hu7d.onrender.com](https://pr-bank-hu7d.onrender.com)
+[https://pr-bank.onrender.com/](https://pr-bank.onrender.com/)
 
 **GitHub Repository:**\
 [https://github.com/praneethnalamalapu-afk/PR\_bank](https://github.com/praneethnalamalapu-afk/PR_bank)
